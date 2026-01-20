@@ -26,27 +26,27 @@ app.listen(port, () => {
     console.log(`Server running on port ${port}`)
 });
 
-// const cors = require("cors");
-// const allowedOrigins = [
-// "http://localhost:3000",
-// // "https://YOUR-frontend.vercel.app", // add later
-// // "https://YOUR-frontend.onrender.com" // add later
-// ];
-// app.use(
-// cors({
-// origin: function (origin, callback) {
-// // allow requests with no origin (Postman/server-to-server)
-// if (!origin) return callback(null, true);
-// if (allowedOrigins.includes(origin)) {
-// return callback(null, true);
-// }
-// return callback(new Error("Not allowed by CORS"));
-// },
-// methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-// allowedHeaders: ["Content-Type", "Authorization"],
-// credentials: false,
-// })
-// );
+const cors = require("cors");
+const allowedOrigins = [
+"http://localhost:3000",
+// "https://YOUR-frontend.vercel.app", // add later
+// "https://YOUR-frontend.onrender.com" // add later
+];
+app.use(
+cors({
+origin: function (origin, callback) {
+// allow requests with no origin (Postman/server-to-server)
+if (!origin) return callback(null, true);
+if (allowedOrigins.includes(origin)) {
+return callback(null, true);
+}
+return callback(new Error("Not allowed by CORS"));
+},
+methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+allowedHeaders: ["Content-Type", "Authorization"],
+credentials: false,
+})
+);
 
 
 //Example Route: Get all cards
