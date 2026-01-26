@@ -1,4 +1,4 @@
-// include the required modules
+// include the required modules 
 const express = require("express");
 const mysql = require("mysql2/promise");
 require("dotenv").config();
@@ -35,14 +35,12 @@ const cors = require("cors");
 
 const allowedOrigins = [
   "http://localhost:3000",
-//   "https://card-app-smoky.vercel.app",
   "https://card-app-starter-team2-0uw1.onrender.com"
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // allow requests with no origin (Postman/server-to-server)
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
@@ -68,11 +66,10 @@ app.post("/login", async (req, res) => {
     return res.status(401).json({ error: "Invalid credentials" });
   }
 
-  // create a token using the JWT secret
   const token = jwt.sign(
     { id: DEMO_USER.id, username: DEMO_USER.username },
     JWT_SECRET,
-    { expiresIn: "1h" },
+    { expiresIn: "1h" }
   );
 
   res.json({ token });
@@ -80,7 +77,7 @@ app.post("/login", async (req, res) => {
 
 // Middleware to protect routes
 function requireAuth(req, res, next) {
-  const header = req.headers.authorization; // "Bearer TOKEN"
+  const header = req.headers.authorization;
 
   if (!header) {
     return res.status(401).json({ error: "Authorization header required" });
@@ -93,66 +90,69 @@ function requireAuth(req, res, next) {
 
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    req.user = payload; // attach user info to request
+    req.user = payload;
     next();
   } catch (error) {
     return res.status(401).json({ error: "Invalid token" });
   }
 }
 
-// get all cards
-app.get("/allcards", async (req, res) => {
+// get all spaces
+app.get("/allspaces", async (req, res) => {
   try {
-        let connection = await mysql.createConnection(dbConfig);
-        const [rows] = await connection.execute('SELECT * FROM defaultdb.cards');
-        await connection.end();
-        res.json(rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({message: 'Server error for allcards'});
-    }
+    let connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute("SELECT * FROM spaces");
+    await connection.end();
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error for allspaces" });
+  }
 });
 
-// add a new card
-app.post("/addcard", requireAuth, async (req, res) => {
-   const { card_name, card_pic } = req.body;
-    try {
-        let connection = await mysql.createConnection(dbConfig);
-        await connection.execute(
-            'INSERT INTO defaultdb.cards (card_name, card_pic) VALUES (?, ?)',
-            [card_name, card_pic]
-        );
-        await connection.end();
-        res.status(201).json({ message: 'Card ' + card_name + ' added successfully' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server error - could not add card' });
-    }
+// add a new space
+app.post("/addspace", requireAuth, async (req, res) => {
+  const { name, description, location, status, usage_notes } = req.body;
+  try {
+    let connection = await mysql.createConnection(dbConfig);
+    await connection.execute(
+      "INSERT INTO spaces (name, description, location, status, usage_notes) VALUES (?, ?, ?, ?, ?)",
+      [name, description, location, status, usage_notes]
+    );
+    await connection.end();
+    res.status(201).json({ message: `Space ${name} added successfully` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error - could not add space" });
+  }
 });
 
-// update a card, week 10
-app.put("/updatecard/:id", requireAuth, async (req, res) => {
+// update a space
+app.put("/updatespace/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
-    const { card_name, card_pic } = req.body;
-    try{
-        let connection = await mysql.createConnection(dbConfig);
-        await connection.execute('UPDATE cards SET card_name=?, card_pic=? WHERE id=?', [card_name, card_pic, id]);
-        res.status(201).json({ message: 'Card ' + id + ' updated successfully!' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server error - could not update card ' + id });
-    }
+  const { name, description, location, status, usage_notes } = req.body;
+  try {
+    let connection = await mysql.createConnection(dbConfig);
+    await connection.execute(
+      "UPDATE spaces SET name=?, description=?, location=?, status=?, usage_notes=? WHERE space_id=?",
+      [name, description, location, status, usage_notes, id]
+    );
+    res.status(201).json({ message: `Space ${id} updated successfully!` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: `Server error - could not update space ${id}` });
+  }
 });
 
-// delete a card, week 10
-app.delete("/deletecard/:id", requireAuth, async (req, res) => {
+// delete a space
+app.delete("/deletespace/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
-    try{
-        let connection = await mysql.createConnection(dbConfig);
-        await connection.execute('DELETE FROM cards WHERE id=?', [id]);
-        res.status(201).json({ message: 'Card ' + id + ' deleted successfully!' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server error - could not delete card ' + id });
-    }
+  try {
+    let connection = await mysql.createConnection(dbConfig);
+    await connection.execute("DELETE FROM spaces WHERE space_id=?", [id]);
+    res.status(201).json({ message: `Space ${id} deleted successfully!` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: `Server error - could not delete space ${id}` });
+  }
 });
