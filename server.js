@@ -103,88 +103,56 @@ function requireAuth(req, res, next) {
 // get all cards
 app.get("/allcards", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM cards");
-    res.json(rows);
-  } catch (error) {
-    console.error("Error fetching cards:", error);
-    res
-      .status(500)
-      .json({ error: "Internal Server Error for getting all cards" });
-  }
+        let connection = await mysql.createConnection(dbConfig);
+        const [rows] = await connection.execute('SELECT * FROM defaultdb.cards');
+        await connection.end();
+        res.json(rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({message: 'Server error for allcards'});
+    }
 });
 
 // add a new card
 app.post("/addcard", requireAuth, async (req, res) => {
-  const { card_name, card_pic } = req.body;
-
-  if (!card_name || !card_pic) {
-    return res
-      .status(400)
-      .json({ error: "card_name and card_pic are required" });
-  }
-
-  try {
-    const [result] = await pool.query(
-      "INSERT INTO cards (card_name, card_pic) VALUES (?, ?)",
-      [card_name, card_pic]
-    );
-    res.status(201).json(result);
-  } catch (error) {
-    console.error("Error adding card:", error);
-    res.status(500).json({ error: "Internal Server Error for adding a card" });
-  }
+   const { card_name, card_pic } = req.body;
+    try {
+        let connection = await mysql.createConnection(dbConfig);
+        await connection.execute(
+            'INSERT INTO defaultdb.cards (card_name, card_pic) VALUES (?, ?)',
+            [card_name, card_pic]
+        );
+        await connection.end();
+        res.status(201).json({ message: 'Card ' + card_name + ' added successfully' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error - could not add card' });
+    }
 });
 
 // update a card, week 10
 app.put("/updatecard/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { card_name, card_pic } = req.body;
-
-  if (!card_name || !card_pic) {
-    return res
-      .status(400)
-      .json({ error: "card_name and card_pic are required" });
-  }
-
-  try {
-    const [result] = await pool.query(
-      "UPDATE cards SET card_name = ?, card_pic = ? WHERE id = ?",
-      [card_name, card_pic, id]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Card not found" });
+    const { card_name, card_pic } = req.body;
+    try{
+        let connection = await mysql.createConnection(dbConfig);
+        await connection.execute('UPDATE cards SET card_name=?, card_pic=? WHERE id=?', [card_name, card_pic, id]);
+        res.status(201).json({ message: 'Card ' + id + ' updated successfully!' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error - could not update card ' + id });
     }
-
-    res
-      .status(200)
-      .json({ message: "Card updated", affectedRows: result.affectedRows });
-  } catch (error) {
-    console.error("Error updating card:", error);
-    res
-      .status(500)
-      .json({ error: "Internal Server Error for updating a card" });
-  }
 });
 
 // delete a card, week 10
 app.delete("/deletecard/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
-
-  try {
-    const [result] = await pool.query("DELETE FROM cards WHERE id = ?", [id]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Card not found" });
+    try{
+        let connection = await mysql.createConnection(dbConfig);
+        await connection.execute('DELETE FROM cards WHERE id=?', [id]);
+        res.status(201).json({ message: 'Card ' + id + ' deleted successfully!' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error - could not delete card ' + id });
     }
-
-    res
-      .status(200)
-      .json({ message: "Card deleted", affectedRows: result.affectedRows });
-  } catch (error) {
-    console.error("Error deleting card:", error);
-    res
-      .status(500)
-      .json({ error: "Internal Server Error for deleting a card" });
-  }
 });
