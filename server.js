@@ -35,7 +35,7 @@ const cors = require("cors");
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://c219-ca2-2m0u.onrender.com"
+  "https://c219-ca-2-duqz.vercel.app"
 ];
 
 app.use(
