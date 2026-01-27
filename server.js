@@ -35,7 +35,7 @@ const cors = require("cors");
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://card-app-starter-team2-0uw1.onrender.com"
+  "https://c219-ca2-webservice.onrender.com"
 ];
 
 app.use(
