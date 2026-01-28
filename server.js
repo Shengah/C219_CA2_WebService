@@ -276,7 +276,6 @@ app.post("/bookspace", requireAuth, async (req, res) => {
   // Log the req.user object to check if user_id is defined
   console.log("Authenticated User:", req.user); // Check if req.user contains user_id
 
-  // Access the user_id correctly from the decoded JWT payload
   const user_id = req.user.id;  // Correctly access the `id` property from the payload
 
   // Log the booking details for debugging
@@ -287,6 +286,17 @@ app.post("/bookspace", requireAuth, async (req, res) => {
   }
 
   try {
+    // Convert ISO 8601 datetime format to MySQL-compatible format (YYYY-MM-DD HH:MM:SS)
+    const formatMySQLDatetime = (isoDate) => {
+      return isoDate.replace("T", " ").replace("Z", "");  // Remove 'T' and 'Z'
+    };
+
+    const formattedStartTime = formatMySQLDatetime(start_time);
+    const formattedEndTime = formatMySQLDatetime(end_time);
+
+    console.log("Formatted Start Time:", formattedStartTime);
+    console.log("Formatted End Time:", formattedEndTime);
+
     let connection = await mysql.createConnection(dbConfig);
 
     // Check if the space is available for the requested time
@@ -302,7 +312,7 @@ app.post("/bookspace", requireAuth, async (req, res) => {
     // Check if the space is available during the requested time
     const [existingBooking] = await connection.execute(
       "SELECT * FROM user_bookings WHERE space_id = ? AND (start_time < ? AND end_time > ?)",
-      [space_id, end_time, start_time]
+      [space_id, formattedEndTime, formattedStartTime]
     );
 
     if (existingBooking.length > 0) {
@@ -312,7 +322,7 @@ app.post("/bookspace", requireAuth, async (req, res) => {
     // Insert the booking into the user_bookings table
     await connection.execute(
       "INSERT INTO user_bookings (user_id, space_id, start_time, end_time, status) VALUES (?, ?, ?, ?, ?)",
-      [user_id, space_id, start_time, end_time, 'booked']
+      [user_id, space_id, formattedStartTime, formattedEndTime, 'booked']
     );
 
     // Update the space status to 'reserved'
@@ -328,8 +338,6 @@ app.post("/bookspace", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Server error - could not book space", details: err.message });
   }
 });
-
-
 
 // Cancel Booking endpoint for students
 app.post("/cancelbooking", requireAuth, async (req, res) => {
