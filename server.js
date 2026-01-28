@@ -274,10 +274,15 @@ app.post("/bookspace", requireAuth, async (req, res) => {
   const { space_id, start_time, end_time } = req.body;
   const { user_id } = req.user;
 
+  // Validate if start_time and end_time are provided
+  if (!start_time || !end_time) {
+    return res.status(400).json({ error: "start_time and end_time are required" });
+  }
+
   try {
     let connection = await mysql.createConnection(dbConfig);
 
-    // Check if the space is available before booking
+    // Check if the space is available for the requested time
     const [space] = await connection.execute(
       "SELECT * FROM spaces WHERE space_id = ? AND status = 'available'",
       [space_id]
@@ -287,7 +292,17 @@ app.post("/bookspace", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "Space is not available for booking" });
     }
 
-    // Insert the booking into the user_bookings table
+    // Check if the space is available during the requested time
+    const [existingBooking] = await connection.execute(
+      "SELECT * FROM user_bookings WHERE space_id = ? AND (start_time < ? AND end_time > ?)",
+      [space_id, end_time, start_time]
+    );
+
+    if (existingBooking.length > 0) {
+      return res.status(400).json({ error: "The space is already booked for the selected time." });
+    }
+
+    // Proceed with the booking
     await connection.execute(
       "INSERT INTO user_bookings (user_id, space_id, start_time, end_time, status) VALUES (?, ?, ?, ?, ?)",
       [user_id, space_id, start_time, end_time, 'booked']
@@ -306,6 +321,7 @@ app.post("/bookspace", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Server error - could not book space" });
   }
 });
+
 
 // Cancel Booking endpoint for students
 app.post("/cancelbooking", requireAuth, async (req, res) => {
