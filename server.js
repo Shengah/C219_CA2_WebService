@@ -148,6 +148,7 @@ app.get("/allspaces", async (req, res) => {
     res.status(500).json({ message: "Server error for allspaces" });
   }
 });
+;
 
 
 // Add a new space (only admins can do this)
