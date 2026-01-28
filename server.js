@@ -269,32 +269,44 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// Book a space (add user booking and update space status)
+// Book a space (student booking the space and update space status to reserved)
 app.post("/bookspace", requireAuth, async (req, res) => {
-  const { user_id, space_id, start_time, end_time } = req.body;
+  const { space_id, start_time, end_time } = req.body;  // Space ID and booking times from the request
+  const { user_id } = req.user; // The authenticated user's ID
 
   try {
     let connection = await mysql.createConnection(dbConfig);
 
-    // Step 1: Insert into user_bookings table
-    await connection.execute(
-      "INSERT INTO user_bookings (user_id, space_id, start_time, end_time, status) VALUES (?, ?, ?, ?, ?)",
-      [user_id, space_id, start_time, end_time, 'booked']
+    // Check if the space is available before proceeding with the booking
+    const [space] = await connection.execute(
+      "SELECT * FROM spaces WHERE space_id = ? AND status = 'available'",
+      [space_id]
     );
 
-    // Step 2: Update the spaces table to mark it as reserved
+    if (space.length === 0) {
+      return res.status(400).json({ error: "Space is not available for booking" });
+    }
+
+    // Step 1: Insert the booking details into the user_bookings table
     await connection.execute(
-      "UPDATE spaces SET status = 'reserved' WHERE space_id = ? AND start_time <= ? AND end_time >= ?",
-      [space_id, start_time, end_time]
+      "INSERT INTO user_bookings (user_id, space_id, start_time, end_time, status) VALUES (?, ?, ?, ?, ?)",
+      [user_id, space_id, start_time, end_time, 'booked']  // Initially setting status to 'booked'
+    );
+
+    // Step 2: Update the space status to 'reserved' (indicating it's no longer available)
+    await connection.execute(
+      "UPDATE spaces SET status = 'reserved' WHERE space_id = ?",
+      [space_id]
     );
 
     await connection.end();
     res.status(201).json({ message: "Space booked successfully!" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error - could not book space" });
+    res.status(500).json({ error: "Server error - could not book space" });
   }
 });
+
 
 // Cancel Booking endpoint for students
 app.post("/cancelbooking", requireAuth, async (req, res) => {
