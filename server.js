@@ -172,52 +172,67 @@ app.put("/updatespace/:id", requireAuth, async (req, res) => {
   }
 });
 
-// Delete a space (only admins can do this)
+// Admin can delete a space completely (delete space and all bookings related to it)
 app.delete("/deletespace/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
+
+  // Only admin can delete a space
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: "Unauthorized - Admin only action" });
+  }
+
   try {
     let connection = await mysql.createConnection(dbConfig);
 
-    // Step 1: Delete the space
-    await connection.execute("DELETE FROM spaces WHERE space_id=?", [id]);
+    // Step 1: Delete the space (admin deletes the space)
+    const [result] = await connection.execute("DELETE FROM spaces WHERE space_id=?", [id]);
 
-    // Step 2: Delete any associated bookings
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Space not found" });
+    }
+
+    // Step 2: Optionally, remove associated bookings if necessary
     await connection.execute("DELETE FROM user_bookings WHERE space_id=?", [id]);
 
     await connection.end();
-    res.status(201).json({ message: `Space ${id} and its bookings deleted successfully!` });
+    res.status(200).json({ message: "Space and its bookings deleted successfully!" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: `Server error - could not delete space ${id}` });
+    res.status(500).json({ message: "Server error - could not delete space" });
   }
 });
 
-// Cancel a booking (mark the booking as cancelled and update space status)
-app.post("/cancelbooking", requireAuth, async (req, res) => {
-  const { user_id, space_id } = req.body;
+
+// Admin can delete a space completely (delete space and all bookings related to it)
+app.delete("/deletespace/:id", requireAuth, async (req, res) => {
+  const { id } = req.params;
+
+  // Only admin can delete a space
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: "Unauthorized - Admin only action" });
+  }
 
   try {
     let connection = await mysql.createConnection(dbConfig);
 
-    // Step 1: Update the booking status to 'cancelled'
-    await connection.execute(
-      "UPDATE user_bookings SET status = 'cancelled' WHERE user_id = ? AND space_id = ? AND status = 'booked'",
-      [user_id, space_id]
-    );
+    // Step 1: Delete the space (admin deletes the space)
+    const [result] = await connection.execute("DELETE FROM spaces WHERE space_id=?", [id]);
 
-    // Step 2: Update the space status to 'available'
-    await connection.execute(
-      "UPDATE spaces SET status = 'available' WHERE space_id = ?",
-      [space_id]
-    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Space not found" });
+    }
+
+    // Step 2: Optionally, remove associated bookings if necessary
+    await connection.execute("DELETE FROM user_bookings WHERE space_id=?", [id]);
 
     await connection.end();
-    res.status(200).json({ message: "Booking cancelled successfully!" });
+    res.status(200).json({ message: "Space and its bookings deleted successfully!" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error - could not cancel booking" });
+    res.status(500).json({ message: "Server error - could not delete space" });
   }
 });
+
 
 // Registration endpoint for students
 app.post("/register", async (req, res) => {
