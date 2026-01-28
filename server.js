@@ -1,6 +1,8 @@
 // include the required modules 
 const express = require("express");
 const mysql = require("mysql2/promise");
+const bcrypt = require('bcrypt');
+const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
 // initialize express app
@@ -54,25 +56,44 @@ app.use(
   })
 );
 
-const DEMO_USER = { id: 1, username: "admin", password: "admin123" };
-
-const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET;
 
+// Login endpoint (authentication)
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
-  if (username !== DEMO_USER.username || password !== DEMO_USER.password) {
-    return res.status(401).json({ error: "Invalid credentials" });
+  // Validate input
+  if (!username || !password) {
+    return res.status(400).json({ error: "Username and password are required" });
   }
 
-  const token = jwt.sign(
-    { id: DEMO_USER.id, username: DEMO_USER.username },
-    JWT_SECRET,
-    { expiresIn: "1h" }
-  );
+  try {
+    let connection = await mysql.createConnection(dbConfig);
+    const [user] = await connection.execute("SELECT * FROM users WHERE username = ?", [username]);
 
-  res.json({ token });
+    if (user.length === 0) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // Compare the password with the hashed password
+    const match = await bcrypt.compare(password, user[0].password_hash);
+    if (!match) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // Create a token with role
+    const token = jwt.sign(
+      { id: user[0].user_id, username: user[0].username, role: user[0].role },  // Include the role in the payload
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    await connection.end();
+    res.json({ token });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error - could not log in" });
+  }
 });
 
 // Middleware to protect routes
@@ -90,14 +111,20 @@ function requireAuth(req, res, next) {
 
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    req.user = payload;
+    req.user = payload;  // Attach the user info (including role) to the request
+
+    // Check for admin role (if you want to protect specific routes for admins only)
+    if (req.user.role !== 'admin' && req.originalUrl !== '/allspaces') {
+      return res.status(403).json({ error: "Admin access required" });  // Allow students to view spaces
+    }
+
     next();
   } catch (error) {
     return res.status(401).json({ error: "Invalid token" });
   }
 }
 
-// get all spaces
+// get all spaces (students and admins can view)
 app.get("/allspaces", async (req, res) => {
   try {
     let connection = await mysql.createConnection(dbConfig);
@@ -110,7 +137,7 @@ app.get("/allspaces", async (req, res) => {
   }
 });
 
-// add a new space
+// add a new space (only admins can do this)
 app.post("/addspace", requireAuth, async (req, res) => {
   const { name, description, location, status, usage_notes } = req.body;
   try {
@@ -127,7 +154,7 @@ app.post("/addspace", requireAuth, async (req, res) => {
   }
 });
 
-// update a space
+// update a space (only admins can do this)
 app.put("/updatespace/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
   const { name, description, location, status, usage_notes } = req.body;
@@ -144,7 +171,7 @@ app.put("/updatespace/:id", requireAuth, async (req, res) => {
   }
 });
 
-// delete a space
+// delete a space (only admins can do this)
 app.delete("/deletespace/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
   try {
