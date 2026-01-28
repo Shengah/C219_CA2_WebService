@@ -340,6 +340,7 @@ app.post("/bookspace", requireAuth, async (req, res) => {
 });
 
 // Cancel Booking endpoint for students
+// Cancel Booking endpoint for students
 app.post("/cancelbooking", requireAuth, async (req, res) => {
   const { space_id } = req.body;
   const { id } = req.user; // The authenticated user's ID (accessing 'id' directly from req.user)
@@ -365,13 +366,13 @@ app.post("/cancelbooking", requireAuth, async (req, res) => {
       return res.status(404).json({ error: "Booking not found or already cancelled" });
     }
 
-    // Step 2: Update the booking status to 'cancelled' and set the space status to 'available'
+    // Step 2: Delete the booking from the user_bookings table
     await connection.execute(
-      "DELETE user_bookings SET status = 'cancelled' WHERE user_id = ? AND space_id = ?",
+      "DELETE FROM user_bookings WHERE user_id = ? AND space_id = ?",
       [id, space_id]
     );
 
-    // Update the space status to 'available'
+    // Step 3: Update the space status to 'available'
     await connection.execute(
       "UPDATE spaces SET status = 'available' WHERE space_id = ?",
       [space_id]
@@ -384,5 +385,6 @@ app.post("/cancelbooking", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Server error - could not cancel booking" });
   }
 });
+
 
 module.exports = app;
