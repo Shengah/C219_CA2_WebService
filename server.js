@@ -183,3 +183,42 @@ app.delete("/deletespace/:id", requireAuth, async (req, res) => {
     res.status(500).json({ message: `Server error - could not delete space ${id}` });
   }
 });
+
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
+
+// Registration endpoint for students
+app.post("/register", async (req, res) => {
+  const { username, password } = req.body;
+
+  // Validate input (ensure username and password are provided)
+  if (!username || !password) {
+    return res.status(400).json({ error: "Username and password are required" });
+  }
+
+  try {
+    let connection = await mysql.createConnection(dbConfig);
+
+    // Check if the student ID already exists
+    const [existingUser] = await connection.execute("SELECT * FROM users WHERE username = ?", [username]);
+    if (existingUser.length > 0) {
+      return res.status(400).json({ error: "Student ID is already taken" });
+    }
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Insert the new student into the database (default role as 'student')
+    await connection.execute(
+      "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
+      [username, hashedPassword, 'student']  // Role 'student' is hardcoded here
+    );
+
+    await connection.end();
+    res.status(201).json({ message: "Registration successful" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error - could not register student" });
+  }
+});
+
