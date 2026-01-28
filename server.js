@@ -4,6 +4,7 @@ const mysql = require("mysql2/promise");
 const bcrypt = require('bcrypt');
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
+const cron = require('node-cron'); // Import node-cron for scheduling tasks
 
 // initialize express app
 const app = express();
@@ -83,7 +84,7 @@ app.post("/login", async (req, res) => {
 
     // Create a token with role
     const token = jwt.sign(
-      { id: user[0].user_id, username: user[0].username, role: user[0].role },  // Include the role in the payload
+      { id: user[0].user_id, username: user[0].username, role: user[0].role },
       JWT_SECRET,
       { expiresIn: "1h" }
     );
@@ -111,7 +112,7 @@ function requireAuth(req, res, next) {
 
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    req.user = payload;  // Attach the user info (including role) to the request
+    req.user = payload;
 
     // Check for admin role (if you want to protect specific routes for admins only)
     if (req.user.role !== 'admin' && req.originalUrl !== '/allspaces') {
@@ -124,7 +125,7 @@ function requireAuth(req, res, next) {
   }
 }
 
-// get all spaces (students and admins can view)
+// Get all spaces (students and admins can view)
 app.get("/allspaces", async (req, res) => {
   try {
     let connection = await mysql.createConnection(dbConfig);
@@ -137,14 +138,14 @@ app.get("/allspaces", async (req, res) => {
   }
 });
 
-// add a new space (only admins can do this)
+// Add a new space (only admins can do this)
 app.post("/addspace", requireAuth, async (req, res) => {
-  const { name, description, location, status, usage_notes } = req.body;
+  const { name, location, status, start_time, end_time, usage_notes, image_url } = req.body;
   try {
     let connection = await mysql.createConnection(dbConfig);
     await connection.execute(
-      "INSERT INTO spaces (name, description, location, status, usage_notes) VALUES (?, ?, ?, ?, ?)",
-      [name, description, location, status, usage_notes]
+      "INSERT INTO spaces (name, location, status, start_time, end_time, usage_notes, image_url) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [name, location, status, start_time, end_time, usage_notes, image_url]
     );
     await connection.end();
     res.status(201).json({ message: `Space ${name} added successfully` });
@@ -154,15 +155,15 @@ app.post("/addspace", requireAuth, async (req, res) => {
   }
 });
 
-// update a space (only admins can do this)
+// Update a space (only admins can do this)
 app.put("/updatespace/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { name, description, location, status, usage_notes } = req.body;
+  const { name, location, status, start_time, end_time, usage_notes, image_url } = req.body;
   try {
     let connection = await mysql.createConnection(dbConfig);
     await connection.execute(
-      "UPDATE spaces SET name=?, description=?, location=?, status=?, usage_notes=? WHERE space_id=?",
-      [name, description, location, status, usage_notes, id]
+      "UPDATE spaces SET name=?, location=?, status=?, start_time=?, end_time=?, usage_notes=?, image_url=? WHERE space_id=?",
+      [name, location, status, start_time, end_time, usage_notes, image_url, id]
     );
     res.status(201).json({ message: `Space ${id} updated successfully!` });
   } catch (err) {
@@ -171,7 +172,7 @@ app.put("/updatespace/:id", requireAuth, async (req, res) => {
   }
 });
 
-// delete a space (only admins can do this)
+// Delete a space (only admins can do this)
 app.delete("/deletespace/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
   try {
@@ -218,3 +219,52 @@ app.post("/register", async (req, res) => {
     res.status(500).json({ error: "Server error - could not register student" });
   }
 });
+
+// Book a space (add user booking and update space status)
+app.post("/bookspace", requireAuth, async (req, res) => {
+  const { user_id, space_id, start_time, end_time } = req.body;
+
+  try {
+    let connection = await mysql.createConnection(dbConfig);
+
+    // Step 1: Insert into user_bookings table
+    await connection.execute(
+      "INSERT INTO user_bookings (user_id, space_id, start_time, end_time, status) VALUES (?, ?, ?, ?, ?)",
+      [user_id, space_id, start_time, end_time, 'booked']
+    );
+
+    // Step 2: Update the spaces table to mark it as reserved
+    await connection.execute(
+      "UPDATE spaces SET status = 'reserved' WHERE space_id = ? AND start_time <= ? AND end_time >= ?",
+      [space_id, start_time, end_time]
+    );
+
+    await connection.end();
+    res.status(201).json({ message: "Space booked successfully!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error - could not book space" });
+  }
+});
+
+// Auto delete expired reserved spaces
+const cron = require('node-cron');
+
+// Scheduled task to delete expired spaces every hour
+cron.schedule('0 * * * *', async () => {  // Runs every hour
+  try {
+    let connection = await mysql.createConnection(dbConfig);
+
+    // Delete spaces that have passed their end_time and are reserved
+    await connection.execute(
+      "DELETE FROM spaces WHERE end_time < NOW() AND status = 'reserved'"
+    );
+
+    await connection.end();
+    console.log("Expired spaces deleted successfully.");
+  } catch (err) {
+    console.error("Error deleting expired spaces: ", err);
+  }
+});
+
+module.exports = app;
