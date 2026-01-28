@@ -115,7 +115,7 @@ function requireAuth(req, res, next) {
     req.user = payload;
 
     // Check for admin role (if you want to protect specific routes for admins only)
-    if (req.user.role !== 'admin' && req.originalUrl !== '/allspaces') {
+    if (req.user.role !== 'admin' && req.originalUrl !== '/allspaces' && req.originalUrl !== '/bookspace') {
       return res.status(403).json({ error: "Admin access required" });  // Allow students to view spaces
     }
 
@@ -277,7 +277,7 @@ app.post("/bookspace", requireAuth, async (req, res) => {
   try {
     let connection = await mysql.createConnection(dbConfig);
 
-    // Step 1: Check if the space is available for booking
+    // Check if the space is available before booking
     const [space] = await connection.execute(
       "SELECT * FROM spaces WHERE space_id = ? AND status = 'available'",
       [space_id]
@@ -287,13 +287,13 @@ app.post("/bookspace", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "Space is not available for booking" });
     }
 
-    // Step 2: Insert the booking details into the user_bookings table
+    // Insert the booking into the user_bookings table
     await connection.execute(
       "INSERT INTO user_bookings (user_id, space_id, start_time, end_time, status) VALUES (?, ?, ?, ?, ?)",
       [user_id, space_id, start_time, end_time, 'booked']
     );
 
-    // Step 3: Update the space status to 'reserved'
+    // Update the space status to 'reserved'
     await connection.execute(
       "UPDATE spaces SET status = 'reserved' WHERE space_id = ?",
       [space_id]
@@ -306,8 +306,6 @@ app.post("/bookspace", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Server error - could not book space" });
   }
 });
-
-
 
 // Cancel Booking endpoint for students
 app.post("/cancelbooking", requireAuth, async (req, res) => {
