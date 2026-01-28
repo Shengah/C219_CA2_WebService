@@ -344,6 +344,11 @@ app.post("/cancelbooking", requireAuth, async (req, res) => {
   const { space_id } = req.body;
   const { user_id } = req.user; // The authenticated user's ID
 
+  // Ensure user_id and space_id are not undefined before proceeding
+  if (!user_id || !space_id) {
+    return res.status(400).json({ error: "user_id and space_id are required" });
+  }
+
   try {
     let connection = await mysql.createConnection(dbConfig);
 
@@ -377,21 +382,5 @@ app.post("/cancelbooking", requireAuth, async (req, res) => {
   }
 });
 
-// Scheduled task to delete expired spaces every hour
-cron.schedule('0 * * * *', async () => {  // Runs every hour
-  try {
-    let connection = await mysql.createConnection(dbConfig);
-
-    // Delete spaces that have passed their end_time and are reserved
-    await connection.execute(
-      "DELETE FROM spaces WHERE end_time < NOW() AND status = 'reserved'"
-    );
-
-    await connection.end();
-    console.log("Expired spaces deleted successfully.");
-  } catch (err) {
-    console.error("Error deleting expired spaces: ", err);
-  }
-});
 
 module.exports = app;
