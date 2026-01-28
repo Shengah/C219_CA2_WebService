@@ -296,6 +296,52 @@ app.post("/bookspace", requireAuth, async (req, res) => {
   }
 });
 
+// Cancel Booking endpoint for students
+app.post("/cancelbooking", requireAuth, async (req, res) => {
+  const { space_id } = req.body;
+  const { user_id } = req.user; // The authenticated user's ID
+
+  try {
+    let connection = await mysql.createConnection(dbConfig);
+
+    // Step 1: Find the booking for the student (make sure it exists and belongs to the student)
+    const [booking] = await connection.execute(
+      "SELECT * FROM user_bookings WHERE user_id = ? AND space_id = ? AND status = 'booked'",
+      [user_id, space_id]
+    );
+
+    if (booking.length === 0) {
+      return res.status(404).json({ error: "Booking not found or already cancelled" });
+    }
+
+    // Step 2: Update the booking status to 'cancelled'
+    await connection.execute(
+      "UPDATE user_bookings SET status = 'cancelled' WHERE user_id = ? AND space_id = ?",
+      [user_id, space_id]
+    );
+
+    // Step 3: Check if there are any other bookings for this space
+    const [otherBookings] = await connection.execute(
+      "SELECT * FROM user_bookings WHERE space_id = ? AND status = 'booked'",
+      [space_id]
+    );
+
+    // If no other bookings exist, set the space status back to 'available'
+    if (otherBookings.length === 0) {
+      await connection.execute(
+        "UPDATE spaces SET status = 'available' WHERE space_id = ?",
+        [space_id]
+      );
+    }
+
+    await connection.end();
+    res.status(200).json({ message: "Booking cancelled successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error - could not cancel booking" });
+  }
+});
+
 // Scheduled task to delete expired spaces every hour
 cron.schedule('0 * * * *', async () => {  // Runs every hour
   try {
