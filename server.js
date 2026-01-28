@@ -247,9 +247,6 @@ app.post("/bookspace", requireAuth, async (req, res) => {
   }
 });
 
-// Auto delete expired reserved spaces
-const cron = require('node-cron');
-
 // Scheduled task to delete expired spaces every hour
 cron.schedule('0 * * * *', async () => {  // Runs every hour
   try {
