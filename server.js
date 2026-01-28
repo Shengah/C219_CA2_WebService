@@ -344,9 +344,7 @@ app.post("/cancelbooking", requireAuth, async (req, res) => {
   const { space_id } = req.body;
   const { user_id } = req.user; // The authenticated user's ID
 
-  // Log values to ensure they are not undefined
-  console.log("Received Cancel Booking Request - user_id:", user_id, "space_id:", space_id);
-
+  // Ensure user_id and space_id are not undefined before proceeding
   if (!user_id || !space_id) {
     return res.status(400).json({ error: "user_id and space_id are required" });
   }
@@ -380,8 +378,9 @@ app.post("/cancelbooking", requireAuth, async (req, res) => {
     res.status(200).json({ message: "Booking cancelled successfully, space is now available" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Server error - could not cancel booking", details: err.message });
+    res.status(500).json({ error: "Server error - could not cancel booking" });
   }
 });
+
 
 module.exports = app;
