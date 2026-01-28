@@ -111,19 +111,20 @@ function requireAuth(req, res, next) {
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
-    req.user = payload;
+    // Log the token to ensure it’s being passed correctly
+    console.log("Received Token:", token);
 
-    // Check for admin role (if you want to protect specific routes for admins only)
-    if (req.user.role !== 'admin' && req.originalUrl !== '/allspaces' && req.originalUrl !== '/bookspace') {
-      return res.status(403).json({ error: "Admin access required" });  // Allow students to view spaces
-    }
-
+    const payload = jwt.verify(token, JWT_SECRET);  // Decodes the token
+    req.user = payload;  // Set req.user with the decoded JWT payload
+    
+    // Log the decoded payload (to debug)
+    console.log("Decoded JWT Payload:", req.user);  // Check if user_id exists here
     next();
   } catch (error) {
     return res.status(401).json({ error: "Invalid token" });
   }
 }
+
 
 // Get all spaces (students and admins can view)
 app.get("/allspaces", async (req, res) => {
@@ -269,17 +270,19 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// Book a space (student booking the space and update space status to reserved)
 app.post("/bookspace", requireAuth, async (req, res) => {
   const { space_id, start_time, end_time } = req.body;
-  const { user_id } = req.user;
+  
+  // Log req.user to see if user_id is populated correctly
+  console.log("Authenticated User:", req.user);
 
-  // Log the values to ensure they are defined
+  const { user_id } = req.user;  // This should be populated from the JWT token
+
+  // Check if user_id is correctly extracted
   console.log("Booking details - user_id:", user_id, "space_id:", space_id, "start_time:", start_time, "end_time:", end_time);
 
-  // Validate if start_time, end_time, and space_id are provided
-  if (!space_id || !start_time || !end_time) {
-    return res.status(400).json({ error: "start_time, end_time, and space_id are required" });
+  if (!user_id || !space_id || !start_time || !end_time) {
+    return res.status(400).json({ error: "user_id, space_id, start_time, and end_time are required" });
   }
 
   try {
@@ -324,7 +327,6 @@ app.post("/bookspace", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Server error - could not book space", details: err.message });
   }
 });
-
 
 
 // Cancel Booking endpoint for students
