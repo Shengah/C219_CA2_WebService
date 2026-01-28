@@ -274,9 +274,12 @@ app.post("/bookspace", requireAuth, async (req, res) => {
   const { space_id, start_time, end_time } = req.body;
   const { user_id } = req.user;
 
-  // Validate if start_time and end_time are provided
-  if (!start_time || !end_time) {
-    return res.status(400).json({ error: "start_time and end_time are required" });
+  // Log the values to ensure they are defined
+  console.log("Booking details - user_id:", user_id, "space_id:", space_id, "start_time:", start_time, "end_time:", end_time);
+
+  // Validate if start_time, end_time, and space_id are provided
+  if (!space_id || !start_time || !end_time) {
+    return res.status(400).json({ error: "start_time, end_time, and space_id are required" });
   }
 
   try {
@@ -302,7 +305,7 @@ app.post("/bookspace", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "The space is already booked for the selected time." });
     }
 
-    // Proceed with the booking
+    // Insert the booking into the user_bookings table
     await connection.execute(
       "INSERT INTO user_bookings (user_id, space_id, start_time, end_time, status) VALUES (?, ?, ?, ?, ?)",
       [user_id, space_id, start_time, end_time, 'booked']
@@ -318,9 +321,10 @@ app.post("/bookspace", requireAuth, async (req, res) => {
     res.status(201).json({ message: "Space booked successfully!" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Server error - could not book space" });
+    res.status(500).json({ error: "Server error - could not book space", details: err.message });
   }
 });
+
 
 
 // Cancel Booking endpoint for students
