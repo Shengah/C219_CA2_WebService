@@ -340,7 +340,6 @@ app.post("/bookspace", requireAuth, async (req, res) => {
 });
 
 // Cancel Booking endpoint for students
-// Cancel Booking endpoint for students
 app.post("/cancelbooking", requireAuth, async (req, res) => {
   const { space_id } = req.body;
   const { id } = req.user; // The authenticated user's ID (accessing 'id' directly from req.user)
@@ -368,7 +367,7 @@ app.post("/cancelbooking", requireAuth, async (req, res) => {
 
     // Step 2: Update the booking status to 'cancelled' and set the space status to 'available'
     await connection.execute(
-      "UPDATE user_bookings SET status = 'cancelled' WHERE user_id = ? AND space_id = ?",
+      "DELETE user_bookings SET status = 'cancelled' WHERE user_id = ? AND space_id = ?",
       [id, space_id]
     );
 
