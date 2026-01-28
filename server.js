@@ -272,13 +272,14 @@ app.post("/register", async (req, res) => {
 
 app.post("/bookspace", requireAuth, async (req, res) => {
   const { space_id, start_time, end_time } = req.body;
-  
-  // Log req.user to see if user_id is populated correctly
-  console.log("Authenticated User:", req.user);
 
-  const { user_id } = req.user;  // This should be populated from the JWT token
+  // Log the req.user object to check if user_id is defined
+  console.log("Authenticated User:", req.user); // Check if req.user contains user_id
 
-  // Check if user_id is correctly extracted
+  // Access the user_id correctly from the decoded JWT payload
+  const user_id = req.user.id;  // Correctly access the `id` property from the payload
+
+  // Log the booking details for debugging
   console.log("Booking details - user_id:", user_id, "space_id:", space_id, "start_time:", start_time, "end_time:", end_time);
 
   if (!user_id || !space_id || !start_time || !end_time) {
@@ -327,6 +328,7 @@ app.post("/bookspace", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Server error - could not book space", details: err.message });
   }
 });
+
 
 
 // Cancel Booking endpoint for students
