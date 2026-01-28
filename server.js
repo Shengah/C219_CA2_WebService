@@ -314,28 +314,20 @@ app.post("/cancelbooking", requireAuth, async (req, res) => {
       return res.status(404).json({ error: "Booking not found or already cancelled" });
     }
 
-    // Step 2: Update the booking status to 'cancelled'
+    // Step 2: Update the booking status to 'cancelled' and set the space status to 'available'
     await connection.execute(
       "UPDATE user_bookings SET status = 'cancelled' WHERE user_id = ? AND space_id = ?",
       [user_id, space_id]
     );
 
-    // Step 3: Check if there are any other bookings for this space
-    const [otherBookings] = await connection.execute(
-      "SELECT * FROM user_bookings WHERE space_id = ? AND status = 'booked'",
+    // Update the space status to 'available'
+    await connection.execute(
+      "UPDATE spaces SET status = 'available' WHERE space_id = ?",
       [space_id]
     );
 
-    // If no other bookings exist, set the space status back to 'available'
-    if (otherBookings.length === 0) {
-      await connection.execute(
-        "UPDATE spaces SET status = 'available' WHERE space_id = ?",
-        [space_id]
-      );
-    }
-
     await connection.end();
-    res.status(200).json({ message: "Booking cancelled successfully" });
+    res.status(200).json({ message: "Booking cancelled successfully, space is now available" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error - could not cancel booking" });
