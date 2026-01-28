@@ -177,11 +177,45 @@ app.delete("/deletespace/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
   try {
     let connection = await mysql.createConnection(dbConfig);
+
+    // Step 1: Delete the space
     await connection.execute("DELETE FROM spaces WHERE space_id=?", [id]);
-    res.status(201).json({ message: `Space ${id} deleted successfully!` });
+
+    // Step 2: Delete any associated bookings
+    await connection.execute("DELETE FROM user_bookings WHERE space_id=?", [id]);
+
+    await connection.end();
+    res.status(201).json({ message: `Space ${id} and its bookings deleted successfully!` });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: `Server error - could not delete space ${id}` });
+  }
+});
+
+// Cancel a booking (mark the booking as cancelled and update space status)
+app.post("/cancelbooking", requireAuth, async (req, res) => {
+  const { user_id, space_id } = req.body;
+
+  try {
+    let connection = await mysql.createConnection(dbConfig);
+
+    // Step 1: Update the booking status to 'cancelled'
+    await connection.execute(
+      "UPDATE user_bookings SET status = 'cancelled' WHERE user_id = ? AND space_id = ? AND status = 'booked'",
+      [user_id, space_id]
+    );
+
+    // Step 2: Update the space status to 'available'
+    await connection.execute(
+      "UPDATE spaces SET status = 'available' WHERE space_id = ?",
+      [space_id]
+    );
+
+    await connection.end();
+    res.status(200).json({ message: "Booking cancelled successfully!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error - could not cancel booking" });
   }
 });
 
