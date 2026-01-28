@@ -271,13 +271,13 @@ app.post("/register", async (req, res) => {
 
 // Book a space (student booking the space and update space status to reserved)
 app.post("/bookspace", requireAuth, async (req, res) => {
-  const { space_id, start_time, end_time } = req.body;  // Space ID and booking times from the request
-  const { user_id } = req.user; // The authenticated user's ID
+  const { space_id, start_time, end_time } = req.body;
+  const { user_id } = req.user;
 
   try {
     let connection = await mysql.createConnection(dbConfig);
 
-    // Check if the space is available before proceeding with the booking
+    // Step 1: Check if the space is available for booking
     const [space] = await connection.execute(
       "SELECT * FROM spaces WHERE space_id = ? AND status = 'available'",
       [space_id]
@@ -287,13 +287,13 @@ app.post("/bookspace", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "Space is not available for booking" });
     }
 
-    // Step 1: Insert the booking details into the user_bookings table
+    // Step 2: Insert the booking details into the user_bookings table
     await connection.execute(
       "INSERT INTO user_bookings (user_id, space_id, start_time, end_time, status) VALUES (?, ?, ?, ?, ?)",
-      [user_id, space_id, start_time, end_time, 'booked']  // Initially setting status to 'booked'
+      [user_id, space_id, start_time, end_time, 'booked']
     );
 
-    // Step 2: Update the space status to 'reserved' (indicating it's no longer available)
+    // Step 3: Update the space status to 'reserved'
     await connection.execute(
       "UPDATE spaces SET status = 'reserved' WHERE space_id = ?",
       [space_id]
@@ -306,6 +306,7 @@ app.post("/bookspace", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Server error - could not book space" });
   }
 });
+
 
 
 // Cancel Booking endpoint for students
