@@ -130,14 +130,25 @@ function requireAuth(req, res, next) {
 app.get("/allspaces", async (req, res) => {
   try {
     let connection = await mysql.createConnection(dbConfig);
-    const [rows] = await connection.execute("SELECT * FROM spaces");
+
+    // Join spaces and user_bookings to get the user_id of the person who booked the space
+    const [spaces] = await connection.execute(
+      `SELECT spaces.*, user_bookings.user_id AS bookedByUserId 
+       FROM spaces
+       LEFT JOIN user_bookings 
+       ON spaces.space_id = user_bookings.space_id AND user_bookings.status = 'booked'`
+    );
+
     await connection.end();
-    res.json(rows);
+
+    // Respond with spaces data including the user who booked each space
+    res.json(spaces);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error for allspaces" });
   }
 });
+
 
 // Add a new space (only admins can do this)
 app.post("/addspace", requireAuth, async (req, res) => {
