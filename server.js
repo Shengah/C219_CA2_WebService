@@ -352,7 +352,6 @@ app.post("/bookspace", requireAuth, async (req, res) => {
 });
 
 // Cancel Booking endpoint for students
-// Cancel Booking endpoint for students
 app.post("/cancelbooking", requireAuth, async (req, res) => {
   const { space_id } = req.body;
   const { id } = req.user; // The authenticated user's ID (accessing 'id' directly from req.user)
@@ -397,6 +396,30 @@ app.post("/cancelbooking", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Server error - could not cancel booking" });
   }
 });
+
+// View user bookings - This will return only the authenticated user's bookings
+app.get("/viewbooking", requireAuth, async (req, res) => {
+  const { id } = req.user; // Get the logged-in user's ID from the token
+
+  try {
+    let connection = await mysql.createConnection(dbConfig);
+
+    // Fetch the user's bookings from the user_bookings table
+    const [bookings] = await connection.execute(
+      "SELECT * FROM user_bookings WHERE user_id = ? AND status != 'cancelled'",
+      [id]  // Fetch bookings that are not cancelled
+    );
+
+    await connection.end();
+
+    // Respond with the user's bookings
+    res.json(bookings);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error - could not fetch bookings" });
+  }
+});
+
 
 
 module.exports = app;
