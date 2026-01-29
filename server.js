@@ -397,28 +397,39 @@ app.post("/cancelbooking", requireAuth, async (req, res) => {
   }
 });
 
-// View user bookings - This will return only the authenticated user's bookings
+// View user bookings (ONLY their own)
 app.get("/viewbooking", requireAuth, async (req, res) => {
-  const { id } = req.user; // Get the logged-in user's ID from the token
+  const { id } = req.user;
 
   try {
     let connection = await mysql.createConnection(dbConfig);
 
-    // Fetch the user's bookings from the user_bookings table
-    const [bookings] = await connection.execute(
-      "SELECT * FROM user_bookings WHERE user_id = ? AND status != 'cancelled'",
-      [id]  // Fetch bookings that are not cancelled
+    const [rows] = await connection.execute(
+      `
+      SELECT 
+        ub.booking_id,
+        ub.space_id,
+        ub.start_time,
+        ub.end_time,
+        ub.status,
+        s.name AS space_name,
+        s.location,
+        s.image_url
+      FROM user_bookings ub
+      JOIN spaces s ON ub.space_id = s.space_id
+      WHERE ub.user_id = ?
+      `,
+      [id]
     );
 
     await connection.end();
-
-    // Respond with the user's bookings
-    res.json(bookings);
+    res.json(rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error - could not fetch bookings" });
   }
 });
+
 
 
 
