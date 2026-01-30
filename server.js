@@ -59,7 +59,7 @@ app.use(
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// Login endpoint (authentication)
+// Login (authentication) (Li Sheng)
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
@@ -97,7 +97,7 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Middleware to protect routes
+// Middleware to protect routes (Li Sheng)
 function requireAuth(req, res, next) {
   const header = req.headers.authorization;
 
@@ -126,7 +126,7 @@ function requireAuth(req, res, next) {
 }
 
 
-// Get all spaces (students and admins can view)
+// Get all spaces (Li Sheng)
 app.get("/allspaces", async (req, res) => {
   try {
     let connection = await mysql.createConnection(dbConfig);
@@ -151,7 +151,7 @@ app.get("/allspaces", async (req, res) => {
   }
 });
 
-// Add a new space (only admins can do this)
+// Add a new space (Xing Herng)
 app.post("/addspace", requireAuth, async (req, res) => {
   const { name, location, status, start_time, end_time, usage_notes, image_url } = req.body;
   try {
@@ -168,7 +168,7 @@ app.post("/addspace", requireAuth, async (req, res) => {
   }
 });
 
-// Update a space (only admins can do this)
+// Update a space (Li Sheng)
 app.put("/updatespace/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
   const { name, location, status, start_time, end_time, usage_notes, image_url } = req.body;
@@ -185,7 +185,8 @@ app.put("/updatespace/:id", requireAuth, async (req, res) => {
   }
 });
 
-// Admin can delete a space completely (delete space and all bookings related to it)
+
+// Admin can delete a space (Xing Herng)
 app.delete("/deletespace/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
 
@@ -216,38 +217,7 @@ app.delete("/deletespace/:id", requireAuth, async (req, res) => {
 });
 
 
-// Admin can delete a space completely (delete space and all bookings related to it)
-app.delete("/deletespace/:id", requireAuth, async (req, res) => {
-  const { id } = req.params;
-
-  // Only admin can delete a space
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: "Unauthorized - Admin only action" });
-  }
-
-  try {
-    let connection = await mysql.createConnection(dbConfig);
-
-    // Step 1: Delete the space (admin deletes the space)
-    const [result] = await connection.execute("DELETE FROM spaces WHERE space_id=?", [id]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Space not found" });
-    }
-
-    // Step 2: Optionally, remove associated bookings if necessary
-    await connection.execute("DELETE FROM user_bookings WHERE space_id=?", [id]);
-
-    await connection.end();
-    res.status(200).json({ message: "Space and its bookings deleted successfully!" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error - could not delete space" });
-  }
-});
-
-
-// Registration endpoint for students
+// Registration endpoint for students (Li Sheng)
 app.post("/register", async (req, res) => {
   const { username, password } = req.body;
 
@@ -282,7 +252,9 @@ app.post("/register", async (req, res) => {
   }
 });
 
-app.post("/bookspace", requireAuth, async (req, res) => {
+
+// Book Spaces (Xing Herng)
+app.post("/bookspace", requireAuth, async (req, res) => { 
   const { space_id, start_time, end_time } = req.body;
 
   // Log the req.user object to check if user_id is defined
@@ -351,7 +323,7 @@ app.post("/bookspace", requireAuth, async (req, res) => {
   }
 });
 
-// Cancel Booking endpoint for students
+// Cancel Booking endpoint for students (Li Sheng)
 app.post("/cancelbooking", requireAuth, async (req, res) => {
   const { space_id } = req.body;
   const { id } = req.user; // The authenticated user's ID (accessing 'id' directly from req.user)
@@ -397,7 +369,7 @@ app.post("/cancelbooking", requireAuth, async (req, res) => {
   }
 });
 
-// View user bookings (ONLY their own)
+// View user bookings (Xing Herng)
 app.get("/viewbooking", requireAuth, async (req, res) => {
   const { id } = req.user;
 
