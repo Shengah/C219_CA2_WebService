@@ -129,27 +129,45 @@ function requireAuth(req, res, next) {
 // Get all spaces (Li Sheng)
 app.get("/allspaces", async (req, res) => {
   try {
+    const { location, status } = req.query; // Retrieve query params for location and status
+
     let connection = await mysql.createConnection(dbConfig);
 
-    // Join spaces, user_bookings, and users to get the username of the person who booked the space
-    const [spaces] = await connection.execute(
-      `SELECT spaces.*, user_bookings.user_id AS bookedByUserId, users.username AS bookedByUserName
-       FROM spaces
-       LEFT JOIN user_bookings 
-       ON spaces.space_id = user_bookings.space_id AND user_bookings.status = 'booked'
-       LEFT JOIN users 
-       ON user_bookings.user_id = users.user_id`
-    );
+    // Start building the SQL query
+    let query = `
+      SELECT spaces.*, 
+             user_bookings.user_id AS bookedByUserId, 
+             users.username AS bookedByUserName
+        FROM spaces
+        LEFT JOIN user_bookings 
+          ON spaces.space_id = user_bookings.space_id 
+          AND user_bookings.status = 'booked'
+        LEFT JOIN users 
+          ON user_bookings.user_id = users.user_id
+        WHERE 1=1`; // Always true condition for dynamic filtering
+
+    // Add filters based on query parameters
+    if (location) {
+      query += ` AND spaces.location LIKE '%${location}%'`;  // Filter by location if provided
+    }
+
+    if (status) {
+      query += ` AND spaces.status = '${status}'`;  // Filter by status if provided
+    }
+
+    // Execute the query
+    const [spaces] = await connection.execute(query);
 
     await connection.end();
 
-    // Respond with spaces data including the user who booked each space
+    // Respond with filtered spaces
     res.json(spaces);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error for allspaces" });
   }
 });
+
 
 // Add a new space (Xing Herng)
 app.post("/addspace", requireAuth, async (req, res) => {
