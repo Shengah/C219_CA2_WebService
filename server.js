@@ -421,6 +421,22 @@ app.get("/viewbooking", requireAuth, async (req, res) => {
 });
 
 
+// Scheduled task to delete expired spaces every hour
+cron.schedule('0 * * * *', async () => {  // Runs every hour
+  try {
+    let connection = await mysql.createConnection(dbConfig);
+
+    // Delete spaces that have passed their end_time and are reserved
+    await connection.execute(
+      "DELETE FROM spaces WHERE end_time < NOW() AND status = 'reserved'"
+    );
+
+    await connection.end();
+    console.log("Expired spaces deleted successfully.");
+  } catch (err) {
+    console.error("Error deleting expired spaces: ", err);
+  }
+});
 
 
 module.exports = app;
