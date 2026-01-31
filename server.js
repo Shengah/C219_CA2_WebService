@@ -421,7 +421,7 @@ app.get("/viewbooking", requireAuth, async (req, res) => {
 });
 
 
-// Scheduled task to delete expired spaces every hour
+// Scheduled task to delete expired spaces every hour (Li Sheng & Xing Herng)
 cron.schedule('* * * * *', async () => {  // Runs every minute for testing
   try {
     let connection = await mysql.createConnection(dbConfig);
