@@ -428,12 +428,19 @@ cron.schedule('* * * * *', async () => {  // Runs every minute for testing
 
     // Step 1: Delete the related user bookings
     await connection.execute(
-      "DELETE FROM user_bookings WHERE space_id IN (SELECT space_id FROM spaces WHERE end_time < CONVERT_TZ(NOW(), 'UTC', 'Asia/Singapore') AND status = 'booked')"
+      `
+      DELETE ub FROM user_bookings ub
+      JOIN spaces s ON ub.space_id = s.space_id
+      WHERE s.end_time < CONVERT_TZ(NOW(), 'UTC', 'Asia/Singapore') AND s.status = 'reserved';
+      `
     );
 
     // Step 2: Now delete the expired spaces
     await connection.execute(
-      "DELETE FROM spaces WHERE end_time < CONVERT_TZ(NOW(), 'UTC', 'Asia/Singapore') AND status = 'reserved'"
+      `
+      DELETE FROM spaces 
+      WHERE end_time < CONVERT_TZ(NOW(), 'UTC', 'Asia/Singapore') AND status = 'reserved';
+      `
     );
 
     await connection.end();
@@ -442,6 +449,7 @@ cron.schedule('* * * * *', async () => {  // Runs every minute for testing
     console.error("Error deleting expired spaces: ", err);
   }
 });
+
 
 
 
