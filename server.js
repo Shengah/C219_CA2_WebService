@@ -426,17 +426,23 @@ cron.schedule('* * * * *', async () => {  // Runs every minute for testing
   try {
     let connection = await mysql.createConnection(dbConfig);
 
-    // Delete spaces that have passed their end_time and are reserved
+    // Step 1: Delete the related user bookings
+    await connection.execute(
+      "DELETE FROM user_bookings WHERE space_id IN (SELECT space_id FROM spaces WHERE end_time < CONVERT_TZ(NOW(), 'UTC', 'Asia/Singapore') AND status = 'booked')"
+    );
+
+    // Step 2: Now delete the expired spaces
     await connection.execute(
       "DELETE FROM spaces WHERE end_time < CONVERT_TZ(NOW(), 'UTC', 'Asia/Singapore') AND status = 'reserved'"
     );
 
     await connection.end();
-    console.log("Expired spaces deleted successfully.");
+    console.log("Expired spaces and related bookings deleted successfully.");
   } catch (err) {
     console.error("Error deleting expired spaces: ", err);
   }
 });
+
 
 
 
