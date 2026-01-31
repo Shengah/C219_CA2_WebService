@@ -424,19 +424,20 @@ app.get("/viewbooking", requireAuth, async (req, res) => {
 // Scheduled task to delete expired spaces every hour
 cron.schedule('* * * * *', async () => {  // Runs every minute for testing
   try {
-    console.log("Checking for expired spaces...");
     let connection = await mysql.createConnection(dbConfig);
 
-    const [deletedSpaces] = await connection.execute(
-      "DELETE FROM spaces WHERE end_time < NOW() AND status = 'reserved'"
+    // Delete spaces that have passed their end_time and are reserved
+    await connection.execute(
+      "DELETE FROM spaces WHERE end_time < CONVERT_TZ(NOW(), 'UTC', 'Asia/Singapore') AND status = 'reserved'"
     );
-    console.log(`Deleted ${deletedSpaces.affectedRows} expired spaces.`);
 
     await connection.end();
+    console.log("Expired spaces deleted successfully.");
   } catch (err) {
     console.error("Error deleting expired spaces: ", err);
   }
 });
+
 
 
 
